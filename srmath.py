@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 import questionary
 import rich
+import random
 from rich.console import Console
 from rich.table import Table
 from dataclasses import dataclass
@@ -351,7 +352,7 @@ class StudyApp:
         self.console.print(
             f"Due date {q.due_date.strftime(datetime_format) if q.due_date else 'New'}"
         )
-        self.console.print(f"\nContent: {q.content}\nAnswer: {q.answer}")
+        self.console.print(f"\n{q.content}\n")
 
         history = self.db.get_question_status(question_id)
         if history:
@@ -380,27 +381,8 @@ class StudyApp:
         self.console.print(f"\n[bold]Answer to Question {q.id}[/bold]")
         self.console.print(f"{q.answer}\n")
 
-        if q.last_review and q.last_review.date() == datetime.now().date():
-            self.console.print(
-                "[yellow]This question has already been reviewed today.[/yellow]"
-            )
-            return
-
-        difficulty = (
-            questionary.select(
-                "How difficult was this question?",
-                choices=[
-                    "again - Need to review this again today",
-                    "hard - That was difficult",
-                    "good - Got it right",
-                    "easy - Too easy",
-                ],
-            )
-            .ask()
-            .split(" - ")[0]
-        )
-
-        self.mark_done(question_id, difficulty)
+    def prompt_to_show_answer(self):
+        return questionary.confirm("Show answer?").ask()
 
     def create_question(self):
         book = questionary.text("Book title:").ask()
@@ -442,6 +424,33 @@ class StudyApp:
             self.db.delete_history()
             self.console.print("[green]History deleted for all questions[/green]")
 
+    def prompt_difficulty(self, question_id: int):
+        if (
+            self.db.get_question(question_id).last_review
+            and self.db.get_question(question_id).last_review.date()
+            == datetime.now().date()
+        ):
+            self.console.print(
+                "[yellow]This question has already been reviewed today.[/yellow]"
+            )
+            return
+
+        difficulty = (
+            questionary.select(
+                "How difficult was this question?",
+                choices=[
+                    "again - Need to review this again today",
+                    "hard - That was difficult",
+                    "good - Got it right",
+                    "easy - Too easy",
+                ],
+            )
+            .ask()
+            .split(" - ")[0]
+        )
+
+        self.mark_done(question_id, difficulty)
+
     def mark_due_questions(self):
         limit = self.get_due_limit()
         questions = self.db.get_due_questions(limit)
@@ -449,9 +458,12 @@ class StudyApp:
             self.console.print("[yellow]No questions due today![/yellow]")
             return
 
+        random.shuffle(questions)
         for q in questions:
             self.show_question(q.id)
-            self.show_answer(q.id)
+            if self.prompt_to_show_answer():
+                self.show_answer(q.id)
+                self.prompt_difficulty(q.id)
 
 
 @click.group()
@@ -516,8 +528,7 @@ def delete_history(question_id, all):
 
 
 @cli.command()
-@click.option("--limit", "-l", type=int, help="Limit the number of questions shown")
-def review(limit):
+def review():
     """Mark today's due questions as reviewed"""
     StudyApp().mark_due_questions()
 
