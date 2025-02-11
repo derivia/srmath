@@ -99,10 +99,10 @@ Delete history for a specific question:
 python srmath.py delete_history 2
 ```
 
-### `mark`
+### `review`
 Start reviweing due questions for today:
 ```bash
-python srmath.py mark
+python srmath.py review
 ```
 
 ## How It Works
