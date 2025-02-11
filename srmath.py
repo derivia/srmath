@@ -223,14 +223,18 @@ class FSRS:
         )
 
     def _update_difficulty(self, difficulty: float, rating: int) -> float:
-        return difficulty + self.w[0] * (1 / rating - 1)
+        if rating == 1:
+            return difficulty + self.w[0] * (1 - difficulty)
+        elif rating == 4:
+            return difficulty + self.w[0] * (0 - difficulty)
+        else:
+            return difficulty + self.w[0] * (1 / rating - 1)
 
     def _update_stability(
         self, stability: float, rating: int, difficulty: float
     ) -> float:
         if rating == 1:
             return self.w[1]
-
         new_stability = stability * (
             1
             + math.exp(self.w[2])
@@ -248,6 +252,8 @@ class FSRS:
             return base_interval * 1.3
         elif rating == 2:
             return base_interval * 0.8
+        elif rating == 1:
+            return 0 # again should run on the same day
         else:
             return base_interval
 
@@ -347,7 +353,7 @@ class StudyApp:
 
         datetime_format = self.get_datetime_format()
 
-        self.console.print(f"[bold]Question {q.id}[/bold]")
+        self.console.print(f"[bold]====================================[/bold]")
         self.console.print(f"From: {q.book}, Page: {q.page}")
         self.console.print(
             f"Due date {q.due_date.strftime(datetime_format) if q.due_date else 'New'}"
@@ -371,6 +377,7 @@ class StudyApp:
             self.console.print(
                 f"From: {q.book}, Page: {q.page} - Due date: {q.due_date.strftime(datetime_format) if q.due_date else 'New'}"
             )
+            self.console.print(f"{q.content}")
 
     def show_answer(self, question_id: int):
         q = self.db.get_question(question_id)
@@ -463,7 +470,7 @@ class StudyApp:
             self.show_question(q.id)
             if self.prompt_to_show_answer():
                 self.show_answer(q.id)
-                self.prompt_difficulty(q.id)
+            self.prompt_difficulty(q.id)
 
 
 @click.group()
