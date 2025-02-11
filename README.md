@@ -42,7 +42,7 @@ It is intended for math review studies, but can be used for other topics.
 
 ## Configuration
 
-The `.srmath.conf` file is used for settings like questions per day and datetime
+The `.srmath.conf` file, located on `$HOME`, is used for settings like questions per day and datetime
 format.
 
 ### Example `.srmath.conf`:
@@ -52,6 +52,8 @@ format.
 questions_due_per_day = 10
 datetime_format = %d/%m/%Y
 ```
+
+The file is created when the program database is first generated.
 
 ## Commands
 
