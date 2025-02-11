@@ -113,6 +113,15 @@ class StudyDB:
         ).fetchone()
         return Question(**dict(row)) if row else None
 
+    def get_questions(self, limit: int) -> List[Question]:
+        if limit is not None:
+            rows = self.conn.execute(
+                "SELECT * FROM questions LIMIT ?", (limit,)
+            ).fetchall()
+        else:
+            rows = self.conn.execute("SELECT * FROM questions").fetchall()
+        return [Question(**dict(row)) for row in rows] if rows else None
+
     def update_question(self, question: Question):
         self.conn.execute(
             """
@@ -339,7 +348,9 @@ class StudyApp:
 
         self.console.print(f"[bold]Question {q.id}[/bold]")
         self.console.print(f"From: {q.book}, Page: {q.page}")
-        self.console.print(f"Due date {q.due_date.strftime(datetime_format) if q.due_date else 'New'}")
+        self.console.print(
+            f"Due date {q.due_date.strftime(datetime_format) if q.due_date else 'New'}"
+        )
         self.console.print(f"\nContent: {q.content}\nAnswer: {q.answer}")
 
         history = self.db.get_question_status(question_id)
@@ -347,8 +358,18 @@ class StudyApp:
             self.console.print("\n[bold]Review History[/bold]")
             for difficulty, review_date in history:
                 formatted_review_date = review_date.strftime(datetime_format)
-                self.console.print(f"{difficulty.capitalize()} on {formatted_review_date}")
+                self.console.print(
+                    f"{difficulty.capitalize()} on {formatted_review_date}"
+                )
 
+    def show_questions_duedate(self, limit: Optional[int] = None):
+        qs = self.db.get_questions(limit)
+        datetime_format = self.get_datetime_format()
+
+        for q in qs:
+            self.console.print(
+                f"From: {q.book}, Page: {q.page} - Due date: {q.due_date.strftime(datetime_format) if q.due_date else 'New'}"
+            )
 
     def show_answer(self, question_id: int):
         q = self.db.get_question(question_id)
@@ -451,6 +472,13 @@ def list(limit):
 def question(question_id):
     """Show a specific question"""
     StudyApp().show_question(question_id)
+
+
+@cli.command()
+@click.option("--limit", "-l", type=int, help="Limit the number of questions shown")
+def all_questions(limit):
+    """Show all questions due date"""
+    StudyApp().show_questions_duedate(limit)
 
 
 @cli.command()
