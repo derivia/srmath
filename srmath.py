@@ -182,9 +182,7 @@ class StudyDB:
         self.conn.commit()
 
     def get_question_status(self, question_id: int) -> List[Tuple[str, datetime]]:
-        rows = self.conn.execute(
-            "SELECT difficulty, review_date FROM question_history WHERE question_id = ? ORDER BY review_date DESC",
-            (question_id,),
+        rows = self.conn.execute( "SELECT difficulty, review_date FROM question_history WHERE question_id = ? ORDER BY review_date DESC", (question_id,),
         ).fetchall()
         difficulty_map = {1.0: "again", 2.0: "hard", 3.0: "good", 4.0: "easy"}
         return [
@@ -248,12 +246,14 @@ class FSRS:
         self, stability: float, difficulty: float, rating: int
     ) -> float:
         base_interval = stability * math.exp((1 - stability) * self.w[5])
-        if rating == 4:
-            return base_interval * 1.3
-        elif rating == 2:
+        if rating == 4: # easy
+            return base_interval * 1.4
+        elif rating == 3: # good
+            return base_interval * 1.2
+        elif rating == 2: # hard
             return base_interval * 0.8
-        elif rating == 1:
-            return 0 # again should run on the same day
+        elif rating == 1: # again
+            return 0  # again is due to the same day
         else:
             return base_interval
 
@@ -354,7 +354,7 @@ class StudyApp:
         datetime_format = self.get_datetime_format()
 
         self.console.print(f"[bold]====================================[/bold]")
-        self.console.print(f"From: {q.book}, Page: {q.page}")
+        self.console.print(f"ID: {q.id} - From: {q.book}, Page: {q.page}")
         self.console.print(
             f"Due date {q.due_date.strftime(datetime_format) if q.due_date else 'New'}"
         )
@@ -375,7 +375,7 @@ class StudyApp:
 
         for q in qs:
             self.console.print(
-                f"From: {q.book}, Page: {q.page} - Due date: {q.due_date.strftime(datetime_format) if q.due_date else 'New'}"
+                f"ID: {q.id} - From: {q.book}, Page: {q.page} - Due date: {q.due_date.strftime(datetime_format) if q.due_date else 'New'}"
             )
             self.console.print(f"{q.content}")
 
