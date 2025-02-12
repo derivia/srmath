@@ -181,7 +181,9 @@ class StudyDB:
         self.conn.commit()
 
     def get_question_status(self, question_id: int) -> List[Tuple[str, datetime]]:
-        rows = self.conn.execute( "SELECT difficulty, review_date FROM question_history WHERE question_id = ? ORDER BY review_date DESC", (question_id,),
+        rows = self.conn.execute(
+            "SELECT difficulty, review_date FROM question_history WHERE question_id = ? ORDER BY review_date DESC",
+            (question_id,),
         ).fetchall()
         difficulty_map = {1.0: "again", 2.0: "hard", 3.0: "good", 4.0: "easy"}
         return [
@@ -245,13 +247,13 @@ class FSRS:
         self, stability: float, difficulty: float, rating: int
     ) -> float:
         base_interval = stability * math.exp((1 - stability) * self.w[5])
-        if rating == 4: # easy
+        if rating == 4:  # easy
             return base_interval * 1.4
-        elif rating == 3: # good
+        elif rating == 3:  # good
             return base_interval * 1.2
-        elif rating == 2: # hard
+        elif rating == 2:  # hard
             return base_interval * 0.8
-        elif rating == 1: # again
+        elif rating == 1:  # again
             return 0  # again is due to the same day
         else:
             return base_interval
@@ -309,6 +311,26 @@ class StudyApp:
             )
 
         self.console.print(table)
+
+    def review_question_by_id(self, question_id: int):
+        """Review a specific question by its ID, only if it's due."""
+        q = self.db.get_question(question_id)
+        if not q:
+            self.console.print(f"[red]Question {question_id} not found[/red]")
+            return
+
+        if q.due_date and q.due_date > datetime.now():
+            self.console.print(
+                f"[yellow]Question {question_id} is not due yet. Its due date is {q.due_date.strftime(self.get_datetime_format())}[/yellow]"
+            )
+            return
+
+        self.show_question(question_id)
+
+        if self.prompt_to_show_answer():
+            self.show_answer(question_id)
+
+        self.prompt_difficulty(question_id)
 
     def mark_done(self, question_id: int, difficulty: str):
         q = self.db.get_question(question_id)
@@ -421,14 +443,25 @@ class StudyApp:
         self.console.print(f"[green]Updated question {question_id}[/green]")
 
     def delete_history(self, question_id: Optional[int] = None):
-        if question_id:
+        """Delete history for a specific question or all questions, with confirmation."""
+        if question_id is None:
+            if not questionary.confirm(
+                "Are you sure you want to delete history for ALL questions?"
+            ).ask():
+                self.console.print("[yellow]Deletion cancelled[/yellow]")
+                return
+            self.db.delete_history()
+            self.console.print("[green]History deleted for all questions[/green]")
+        else:
+            if not questionary.confirm(
+                f"Are you sure you want to delete history for question {question_id}?"
+            ).ask():
+                self.console.print("[yellow]Deletion cancelled[/yellow]")
+                return
             self.db.delete_history(question_id)
             self.console.print(
                 f"[green]History deleted for question {question_id}[/green]"
             )
-        else:
-            self.db.delete_history()
-            self.console.print("[green]History deleted for all questions[/green]")
 
     def prompt_difficulty(self, question_id: int):
         if (
@@ -525,10 +558,20 @@ def reset():
 
 
 @cli.command()
+@click.argument("question_id", type=int)
+def review_question(question_id):
+    """Review a specific question by its ID, only if it's due."""
+    StudyApp().review_question_by_id(question_id)
+
+
+@cli.command()
 @click.option("--all", is_flag=True, help="Delete history for all questions")
 @click.argument("question_id", type=int, required=False)
 def delete_history(question_id, all):
-    """Delete history for a specific question or all questions"""
+    """Delete history for a specific question or all questions."""
+    if not all and question_id is None:
+        raise click.UsageError("You must specify either a question_id or use --all.")
+
     StudyApp().delete_history(question_id if not all else None)
 
 
