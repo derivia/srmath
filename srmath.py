@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 import questionary
 import rich
-import random
 from rich.console import Console
 from rich.table import Table
 from dataclasses import dataclass
@@ -149,7 +148,7 @@ class StudyDB:
         query = """
             SELECT * FROM questions
             WHERE due_date <= ? OR due_date IS NULL
-            ORDER BY due_date ASC NULLS FIRST
+            ORDER BY due_date ASC NULLS FIRST, page ASC
         """
         if limit:
             query += f" LIMIT {limit}"
@@ -465,7 +464,6 @@ class StudyApp:
             self.console.print("[yellow]No questions due today![/yellow]")
             return
 
-        random.shuffle(questions)
         for q in questions:
             self.show_question(q.id)
             if self.prompt_to_show_answer():
